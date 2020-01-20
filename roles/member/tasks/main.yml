@@ -1,0 +1,137 @@
+---
+
+- name: install required packages
+  yum:
+    name:
+      - samba
+      - samba-client
+      - samba-winbind
+    state: installed
+
+- name: set hostname 
+  hostname:
+    name: "{{ hostname }}.{{ domain }}"
+
+- name: register ipv4 hostname
+  lineinfile:
+    path: /etc/hosts
+    regexp: '(^127.0.0.1) (?!{{ hostname }}.{{ domain }}) (.*)'
+    line: '\1 {{ hostname }}.{{ domain }} \2'
+    backrefs: yes
+
+- name: register ipv6 hostname
+  lineinfile:
+    path: /etc/hosts
+    regexp: '(^::1) (?!{{ hostname }}.{{ domain }}) (.*)'
+    line: '\1 {{ hostname }}.{{ domain }} \2'
+    backrefs: yes
+
+- name: modify workgroup in samba config
+  ini_file:
+    path: /etc/samba/smb.conf
+    section: global
+    option: workgroup
+    value: "{{ workgroup | upper }}"
+
+- name: modify security in samba config
+  ini_file:
+    path: /etc/samba/smb.conf
+    section: global
+    option: security 
+    value: ads
+
+- name: modify realm in samba config
+  ini_file:
+    path: /etc/samba/smb.conf
+    section: global
+    option: realm
+    value: "{{ domain | upper }}"
+
+- name: modify creation of home directory in samba config
+  ini_file:
+    path: /etc/samba/smb.conf
+    section: global
+    option: obey pam restrictions
+    value: "yes"
+
+- name: modify home directory in samba config
+  ini_file:
+    path: /etc/samba/smb.conf
+    section: global
+    option: template homedir
+    value: "/home/%D/%U"
+
+- name: create home directory for domain users
+  file:
+    path: "/home/{{ domain | upper }}"
+    state: directory
+    owner: root
+    group: root
+    mode: 0755
+
+- name: modify libdefaults krb config
+  ini_file:
+    path: /etc/krb5.conf.d/ad.conf
+    section: libdefaults
+    option: default_realm
+    value: "{{ domain | upper }}"
+
+- name: modify realms krb config
+  ini_file:
+    path: /etc/krb5.conf.d/ad.conf
+    section: realms 
+    option: "{{ domain | upper }}"
+    value: "{ kdc={{ domain }} admin_server={{ domain_controller }} }"
+
+- name: modify domain realms krb config
+  ini_file:
+    path: /etc/krb5.conf.d/ad.conf
+    section: domain_realm 
+    option: ".{{ domain }}"
+    value: "{{ domain | upper }}"
+
+- name: modify domain realms krb config
+  ini_file:
+    path: /etc/krb5.conf.d/ad.conf
+    section: domain_realm 
+    option: "{{ domain }}"
+    value: "{{ domain | upper }}"
+
+- name: add winbind to password on nsswitch.conf 
+  lineinfile:
+    path: /etc/nsswitch.conf
+    regexp: '(^passwd:)\s+(files sss)'
+    line: 'passwd: files winbind'
+
+- name: add winbind to shadow on nsswitch.conf 
+  lineinfile:
+    path: /etc/nsswitch.conf
+    regexp: '(^shadow:)\s+(files sss)'
+    line: 'shadow: files winbind'
+
+- name: add winbind to group on nsswitch.conf 
+  lineinfile:
+    path: /etc/nsswitch.conf
+    regexp: '(^group:)\s+(files sss)'
+    line: 'group: files winbind'
+
+- name: start samba server
+  systemd:
+    name: smb
+    state: started
+    enabled: yes
+
+- name: start nmb server
+  systemd:
+    name: nmb
+    state: started
+    enabled: yes
+
+- name: start winbind server
+  systemd:
+    name: winbind
+    state: started
+    enabled: yes
+
+- name: join domain
+  command: net ads join -U {{ domain_admin_username }}%{{ domain_admin_password}}

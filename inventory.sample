@@ -1,0 +1,8 @@
+[members]
+
+[members:vars]
+workgroup=
+domain=
+domain_controller=
+domain_admin_username=
+domain_admin_password=

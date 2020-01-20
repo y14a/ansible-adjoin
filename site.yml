@@ -1,0 +1,6 @@
+---
+
+- hosts: members
+  become: yes
+  roles:
+    - member
