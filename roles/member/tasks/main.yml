@@ -90,3 +90,9 @@
   command: net ads join -U {{ domain_admin_username }}%{{ domain_admin_password}}
   when: is_joined.rc != 0
 
+- name: Allow ssh only particular group
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: "^AllowGroups {{ allow_groups }}"
+    line: "AllowGroups {{ allow_groups }}"
+  notify: restart sshd
