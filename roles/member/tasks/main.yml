@@ -7,6 +7,10 @@
       - samba-client
       - samba-winbind
       - samba-winbind-clients
+      - samba-winbind-krb5-locator
+      - krb5-workstation
+      - pam_krb5
+      - oddjob-mkhomedir
     state: installed
 
 - name: set hostname 
@@ -27,40 +31,27 @@
     line: '\1 {{ hostname }}.{{ domain }} \2'
     backrefs: yes
 
-- name: modify workgroup in samba config
-  ini_file:
-    path: /etc/samba/smb.conf
-    section: global
-    option: workgroup
-    value: "{{ workgroup | upper }}"
+- name: generate samba config from template
+  template:
+    src: smb.conf.jinja2
+    dest: /etc/samba/smb.conf
+    setype: samba_etc_t
+    backup: yes
+  register: smbconf
 
-- name: modify security in samba config
-  ini_file:
-    path: /etc/samba/smb.conf
-    section: global
-    option: security 
-    value: ads
+- name: generate kerberos config from template
+  template:
+    src: krb5.conf.jinja2
+    dest: /etc/krb5.conf
+    setype: krb5_conf_t
+    backup: yes
+  register: krb5conf
 
-- name: modify realm in samba config
-  ini_file:
-    path: /etc/samba/smb.conf
-    section: global
-    option: realm
-    value: "{{ domain | upper }}"
-
-- name: modify creation of home directory in samba config
-  ini_file:
-    path: /etc/samba/smb.conf
-    section: global
-    option: obey pam restrictions
-    value: "yes"
-
-- name: modify home directory in samba config
-  ini_file:
-    path: /etc/samba/smb.conf
-    section: global
-    option: template homedir
-    value: "/home/%D/%U"
+- name: enable winbind auth by authconfig
+  command: /usr/sbin/authconfig --enablekrb5 --enablewinbind --enablewinbindauth --enablemkhomedir --update
+  when:
+    - smbconf.changed
+    - krb5conf.changed
 
 - name: create home directory for domain users
   file:
@@ -69,52 +60,6 @@
     owner: root
     group: root
     mode: 0755
-
-- name: modify libdefaults krb config
-  ini_file:
-    path: /etc/krb5.conf.d/ad.conf
-    section: libdefaults
-    option: default_realm
-    value: "{{ domain | upper }}"
-
-- name: modify realms krb config
-  ini_file:
-    path: /etc/krb5.conf.d/ad.conf
-    section: realms 
-    option: "{{ domain | upper }}"
-    value: "{ kdc={{ domain }} admin_server={{ domain_controller }} }"
-
-- name: modify domain realms krb config
-  ini_file:
-    path: /etc/krb5.conf.d/ad.conf
-    section: domain_realm 
-    option: ".{{ domain }}"
-    value: "{{ domain | upper }}"
-
-- name: modify domain realms krb config
-  ini_file:
-    path: /etc/krb5.conf.d/ad.conf
-    section: domain_realm 
-    option: "{{ domain }}"
-    value: "{{ domain | upper }}"
-
-- name: add winbind to password on nsswitch.conf 
-  lineinfile:
-    path: /etc/nsswitch.conf
-    regexp: '(^passwd:)\s+(files sss)'
-    line: 'passwd: files winbind'
-
-- name: add winbind to shadow on nsswitch.conf 
-  lineinfile:
-    path: /etc/nsswitch.conf
-    regexp: '(^shadow:)\s+(files sss)'
-    line: 'shadow: files winbind'
-
-- name: add winbind to group on nsswitch.conf 
-  lineinfile:
-    path: /etc/nsswitch.conf
-    regexp: '(^group:)\s+(files sss)'
-    line: 'group: files winbind'
 
 - name: start samba server
   systemd:
@@ -138,8 +83,10 @@
   command: net ads testjoin -k
   register: is_joined
   ignore_errors: True
+  failed_when: False
   changed_when: False
 
 - name: join domain
   command: net ads join -U {{ domain_admin_username }}%{{ domain_admin_password}}
   when: is_joined.rc != 0
+
