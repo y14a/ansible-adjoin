@@ -6,6 +6,7 @@
       - samba
       - samba-client
       - samba-winbind
+      - samba-winbind-clients
     state: installed
 
 - name: set hostname 
@@ -133,5 +134,12 @@
     state: started
     enabled: yes
 
+- name: check already joined
+  command: net ads testjoin -k
+  register: is_joined
+  ignore_errors: True
+  changed_when: False
+
 - name: join domain
   command: net ads join -U {{ domain_admin_username }}%{{ domain_admin_password}}
+  when: is_joined.rc != 0
