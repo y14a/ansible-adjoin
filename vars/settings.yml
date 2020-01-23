@@ -1,0 +1,9 @@
+domain:
+  name: 
+  workgroup:
+  controller: 
+  admin:
+    username: 
+    password:
+sshd:
+  allowGroups:

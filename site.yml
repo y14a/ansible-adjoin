@@ -1,6 +1,3 @@
 ---
 
-- hosts: members
-  become: yes
-  roles:
-    - member
+- import_playbook: members.yml

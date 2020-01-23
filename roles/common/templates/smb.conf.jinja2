@@ -4,21 +4,22 @@
 # you modified it.
 
 [global]
-	workgroup = {{ workgroup }}
+	workgroup = {{ domain.workgroup }}
 	security = ads
 	passdb backend = tdbsam
 	printing = cups
 	printcap name = cups
 	load printers = yes
 	cups options = raw
-	realm = {{ domain | upper }}
+	realm = {{ domain.name | upper }}
 	obey pam restrictions = yes
 	template homedir = /home/%D/%U
 	template shell = /bin/bash
+	kerberos method = secrets and keytab
 	idmap uid = 10000-50000
 	idmap gid = 10000-50000
 	winbind use default domain=true
-        winbind offline logon=false
+    winbind offline logon=false
 
 [homes]
 	comment = Home Directories

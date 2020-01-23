@@ -13,15 +13,15 @@ includedir /etc/krb5.conf.d/
  forwardable = true
  rdns = false
  pkinit_anchors = /etc/pki/tls/certs/ca-bundle.crt
- default_realm = {{ domain | upper }}
+ default_realm = {{ domain.name | upper }}
  default_ccache_name = KEYRING:persistent:%{uid}
 
 [realms]
-{{ domain | upper }} = {
-	kdc={{ domain }}
-	admin_server={{ domain_controller }}
+{{ domain.name | upper }} = {
+	kdc={{ domain.name }}
+	admin_server={{ domain.controller }}
 }
 
 [domain_realm]
-.{{ domain }} = {{ domain | upper }}
-{{ domain }} = {{ domain | upper }}
+.{{ domain.name }} = {{ domain.name | upper }}
+{{ domain.name }} = {{ domain.name | upper }}

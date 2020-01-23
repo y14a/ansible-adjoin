@@ -1,0 +1,10 @@
+---
+
+- hosts: members
+  become: yes
+  vars_files:
+    - vars/{{ stage | default('settings') }}.yml
+  roles:
+    - common
+    - { role: winbind, when: integration == 'winbind' }
+    - { role: sssd, when: integration == 'sssd' }

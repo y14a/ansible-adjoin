@@ -1,0 +1,21 @@
+---
+
+- name: install required packages
+  yum:
+    name:
+      - sssd-ad
+      - adcli
+      - samba-common-tools
+    state: installed
+
+- name: use sssd as system authentication
+  command: authconfig --update --enablesssd --enablesssdauth --enablemkhomedir
+
+- name: generate sssd config from template
+  template:
+    src: sssd.conf.jinja2
+    dest: /etc/sssd/sssd.conf
+    setype: sssd_conf_t
+    mode: 0600
+    backup: yes
+  notify: restart sssd

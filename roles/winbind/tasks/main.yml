@@ -1,0 +1,51 @@
+---
+
+- name: install required packages
+  yum:
+    name:
+      - samba
+      - samba-client
+      - samba-winbind
+      - samba-winbind-clients
+      - samba-winbind-krb5-locator
+      - pam_krb5
+    state: installed
+
+- name: enable winbind auth by authconfig
+  command: /usr/sbin/authconfig --enablekrb5 --enablewinbind --enablewinbindauth --enablemkhomedir --update
+
+- name: start samba server
+  systemd:
+    name: smb
+    state: started
+    enabled: yes
+
+- name: start nmb server
+  systemd:
+    name: nmb
+    state: started
+    enabled: yes
+
+- name: start winbind server
+  systemd:
+    name: winbind
+    state: started
+    enabled: yes
+
+- name: check already joined
+  command: net ads testjoin -k
+  register: is_joined
+  ignore_errors: True
+  failed_when: False
+  changed_when: False
+
+- name: join domain
+  command: net ads join -U {{ domain.admin.username }}%{{ domain.admin.password }}
+  when: is_joined.rc != 0
+
+- name: Allow ssh only particular group
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: "^AllowGroups {{ sshd.allowGroups | join(' ') }}"
+    line: "AllowGroups {{ sshd.allowGroups | join(' ') }}"
+  notify: restart sshd

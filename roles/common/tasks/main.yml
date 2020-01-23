@@ -1,0 +1,59 @@
+---
+
+- name: install required packages
+  yum:
+    name:
+      - oddjob
+      - oddjob-mkhomedir
+      - krb5-workstation
+      - samba-common-tools
+    state: installed
+
+- name: set hostname 
+  hostname:
+    name: "{{ inventory_hostname }}"
+
+- name: set hostname to hosts file
+  lineinfile:
+    path: /etc/hosts
+    regexp: '{{ item }}'
+    line: '\1 {{ inventory_hostname }} \2'
+    backrefs: yes
+  with_items:
+    - '(^127.0.0.1) (?!{{ inventory_hostname }}) (.*)'
+    - '(^::1) (?!{{ inventory_hostname }}) (.*)'
+
+- name: create home directory for domain users
+  file:
+    path: "/home/{{ domain.name | upper }}"
+    state: directory
+    owner: root
+    group: root
+    mode: 0755
+
+- name: generate kerberos config from template
+  template:
+    src: krb5.conf.jinja2
+    dest: /etc/krb5.conf
+    setype: krb5_conf_t
+    backup: yes
+
+- name: generate samba config from template
+  template:
+    src: smb.conf.jinja2
+    dest: /etc/samba/smb.conf
+    setype: samba_etc_t
+    backup: yes
+
+- name: check kerberos credential exists
+  stat:
+    path: /etc/krb5.keytab
+  register: krbkey
+
+- name: initialize kerberos credential
+  shell: "echo '{{ domain.admin.password }}' | kinit {{ domain.admin.username }}"
+  when: krbkey.stat.exists is defined and not krbkey.stat.exists
+
+- name: join the domain
+  command: net ads join -k
+  when: krbkey.stat.exists is defined and not krbkey.stat.exists

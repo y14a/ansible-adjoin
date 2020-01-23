@@ -1,8 +1,10 @@
 [members]
+#
+# List of target host FQDN. 
+#
 
-[members:vars]
-workgroup=
-domain=
-domain_controller=
-domain_admin_username=
-domain_admin_password=
+[all:vars]
+#
+# stage=<File name which is under the vars/ without suffix>
+#
+stage=
